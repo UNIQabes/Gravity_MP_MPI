@@ -2,12 +2,12 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <math.h>
+#include <omp.h>
 
 #include "grav_data/data_util_bin.c"
 int main()
 {
 	int np = 1000;
-
 	double *ms = malloc(sizeof(double) * np);
 	read_data("grav_data/n1000/m.double", ms, np);
 
@@ -43,40 +43,47 @@ int main()
 	int stepNum = 10;
 	for (int stepCount = 0; stepCount < stepNum; stepCount++)
 	{
-		// printf("pos[0]:(%f,%f,%f) v[0](%f,%f,%f)\n", xs_old[0], ys_old[0], zs_old[0], vxs_old[0], vys_old[0], vzs_old[0]);
-		for (int i = 0; i < np; i++) // i番目のvelocityとpositionを求める
+// printf("pos[0]:(%f,%f,%f) v[0](%f,%f,%f)\n", xs_old[0], ys_old[0], zs_old[0], vxs_old[0], vys_old[0], vzs_old[0]);
+#pragma omp parallel
 		{
-			double x = xs_old[i];
-			double y = ys_old[i];
-			double z = zs_old[i];
-
-			double vx_new = vxs_old[i];
-			double vy_new = vys_old[i];
-			double vz_new = vzs_old[i];
-
-			for (int j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
+#pragma omp parallel for
+			for (int i = 0; i < np; i++) // i番目のvelocityとpositionを求める
 			{
-				if (j == i)
+				double x = xs_old[i];
+				double y = ys_old[i];
+				double z = zs_old[i];
+
+				double vx_new = 0;
+				double vy_new = 0;
+				double vz_new = 0;
+#pragma omp parallel for reduction(+ : vx_new, vy_new, vz_new)
+				for (int j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
 				{
-					continue;
+					if (j == i)
+					{
+						continue;
+					}
+					double rij = sqrt(pow(xs_old[j] - x, 2) + pow(ys_old[j] - y, 2) + pow(zs_old[j] - z, 2));
+
+					double axij = (-G) * ms[j] / pow(rij, 2) * (x - xs_old[j]) / rij;
+					double ayij = (-G) * ms[j] / pow(rij, 2) * (y - ys_old[j]) / rij;
+					double azij = (-G) * ms[j] / pow(rij, 2) * (z - zs_old[j]) / rij;
+
+					vx_new += axij * dt;
+					vy_new += ayij * dt;
+					vz_new += azij * dt;
 				}
-				double rij = sqrt(pow(xs_old[j] - x, 2) + pow(ys_old[j] - y, 2) + pow(zs_old[j] - z, 2));
+				vx_new += vxs_old[i];
+				vy_new += vys_old[i];
+				vz_new += vzs_old[i];
 
-				double axij = (-G) * ms[j] / pow(rij, 2) * (x - xs_old[j]) / rij;
-				double ayij = (-G) * ms[j] / pow(rij, 2) * (y - ys_old[j]) / rij;
-				double azij = (-G) * ms[j] / pow(rij, 2) * (z - zs_old[j]) / rij;
-
-				vx_new += axij * dt;
-				vy_new += ayij * dt;
-				vz_new += azij * dt;
+				xs_new[i] = x + vx_new * dt;
+				ys_new[i] = y + vy_new * dt;
+				zs_new[i] = z + vz_new * dt;
+				vxs_new[i] = vx_new;
+				vys_new[i] = vy_new;
+				vzs_new[i] = vz_new;
 			}
-
-			xs_new[i] = x + vx_new * dt;
-			ys_new[i] = y + vy_new * dt;
-			zs_new[i] = z + vz_new * dt;
-			vxs_new[i] = vx_new;
-			vys_new[i] = vy_new;
-			vzs_new[i] = vz_new;
 		}
 
 		double *temp;
