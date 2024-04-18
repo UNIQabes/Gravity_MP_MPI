@@ -29,13 +29,7 @@ int main()
 	double *vzs_old = malloc(sizeof(double) * np);
 	read_data("grav_data/n1000/vz.double", vzs_old, np);
 
-	/*
-	for (int i = 0; i < 3; i++)
-	{
-		printf("%f/", xs_old[i]);
-	}
-	printf("\n");
-	*/
+	// for (int i = 0; i < 3; i++){printf("%f/", xs_old[i]);}printf("\n");
 
 	double *xs_new = malloc(sizeof(double) * np);
 	double *ys_new = malloc(sizeof(double) * np);
@@ -107,13 +101,7 @@ int main()
 		vzs_new = temp;
 	}
 
-	/*
-	for (int i = 0; i < 3; i++)
-	{
-		printf("%f/", xs_old[i]);
-	}
-	printf("\n");
-	*/
+	// for (int i = 0; i < 3; i++){printf("%f/", xs_old[i]);}printf("\n");
 
 	write_data(xs_old, "grav_data/result1000/outx.double", np);
 	write_data(ys_old, "grav_data/result1000/outy.double", np);
