@@ -43,6 +43,7 @@ int main()
 	int stepNum = 10;
 	for (int stepCount = 0; stepCount < stepNum; stepCount++)
 	{
+		// printf("pos[0]:(%f,%f,%f) v[0](%f,%f,%f)\n", xs_old[0], ys_old[0], zs_old[0], vxs_old[0], vys_old[0], vzs_old[0]);
 		for (int i = 0; i < np; i++) // i番目のvelocityとpositionを求める
 		{
 			double x = xs_old[i];
@@ -61,9 +62,9 @@ int main()
 				}
 				double rij = sqrt(pow(xs_old[j] - x, 2) + pow(ys_old[j] - y, 2) + pow(zs_old[j] - z, 2));
 
-				double axij = -G * ms[j] / pow(rij, 2) * (x - xs_old[j]) / rij;
-				double ayij = -G * ms[j] / pow(rij, 2) * (y - ys_old[j]) / rij;
-				double azij = -G * ms[j] / pow(rij, 2) * (z - zs_old[j]) / rij;
+				double axij = (-G) * ms[j] / pow(rij, 2) * (x - xs_old[j]) / rij;
+				double ayij = (-G) * ms[j] / pow(rij, 2) * (y - ys_old[j]) / rij;
+				double azij = (-G) * ms[j] / pow(rij, 2) * (z - zs_old[j]) / rij;
 
 				vx_new += axij * dt;
 				vy_new += ayij * dt;
@@ -73,6 +74,9 @@ int main()
 			xs_new[i] = x + vx_new * dt;
 			ys_new[i] = y + vy_new * dt;
 			zs_new[i] = z + vz_new * dt;
+			vxs_new[i] = vx_new;
+			vys_new[i] = vy_new;
+			vzs_new[i] = vz_new;
 		}
 
 		double *temp;
