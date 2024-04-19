@@ -61,9 +61,17 @@ int main(int argc, char *argv[])
 	double *xs_new_local = malloc(sizeof(double) * localSize);
 	double *ys_new_local = malloc(sizeof(double) * localSize);
 	double *zs_new_local = malloc(sizeof(double) * localSize);
-	double *vxs_new_local = malloc(sizeof(double) * localSize);
-	double *vys_new_local = malloc(sizeof(double) * localSize);
-	double *vzs_new_local = malloc(sizeof(double) * localSize);
+
+	double *vxs_local = malloc(sizeof(double) * localSize);
+	double *vys_local = malloc(sizeof(double) * localSize);
+	double *vzs_local = malloc(sizeof(double) * localSize);
+	for (int i = localSize * rank; i < min(localSize * (rank + 1), np); i++)
+	{
+		int local_i = i - localSize * rank;
+		vxs_local[local_i] = vxs_old[i];
+		vys_local[local_i] = vys_old[i];
+		vzs_local[local_i] = vzs_old[i];
+	}
 
 	double dt = 1;
 	double G = 1;
@@ -71,53 +79,45 @@ int main(int argc, char *argv[])
 
 	for (int stepCount = 0; stepCount < stepNum; stepCount++)
 	{
-#pragma omp parallel
-		{
 #pragma omp parallel for
-			for (int i = localSize * rank; i < min(localSize * (rank + 1), np); i++) // i番目のvelocityとpositionを求める
+		for (int i = localSize * rank; i < min(localSize * (rank + 1), np); i++) // i番目のvelocityとpositionを求める
+		{
+
+			double x = xs_old[i];
+			double y = ys_old[i];
+			double z = zs_old[i];
+
+			double vx_new = 0;
+			double vy_new = 0;
+			double vz_new = 0;
+			for (int j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
 			{
-
-				double x = xs_old[i];
-				double y = ys_old[i];
-				double z = zs_old[i];
-
-				double vx_new = 0;
-				double vy_new = 0;
-				double vz_new = 0;
-#pragma omp parallel for reduction(+ : vx_new, vy_new, vz_new)
-				for (int j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
+				if (j == i)
 				{
-					if (j == i)
-					{
-						continue;
-					}
-					double rij = sqrt(pow(xs_old[j] - x, 2) + pow(ys_old[j] - y, 2) + pow(zs_old[j] - z, 2));
-
-					double axij = (-G) * ms[j] / pow(rij, 2) * (x - xs_old[j]) / rij;
-					double ayij = (-G) * ms[j] / pow(rij, 2) * (y - ys_old[j]) / rij;
-					double azij = (-G) * ms[j] / pow(rij, 2) * (z - zs_old[j]) / rij;
-
-					vx_new += axij * dt;
-					vy_new += ayij * dt;
-					vz_new += azij * dt;
+					continue;
 				}
-				vx_new += vxs_old[i];
-				vy_new += vys_old[i];
-				vz_new += vzs_old[i];
+				double rij = sqrt(pow(xs_old[j] - x, 2) + pow(ys_old[j] - y, 2) + pow(zs_old[j] - z, 2));
 
-				int local_i = i - localSize * rank;
+				double axij = (-G) * ms[j] / pow(rij, 2) * (x - xs_old[j]) / rij;
+				double ayij = (-G) * ms[j] / pow(rij, 2) * (y - ys_old[j]) / rij;
+				double azij = (-G) * ms[j] / pow(rij, 2) * (z - zs_old[j]) / rij;
 
-				xs_new_local[local_i] = x + vx_new * dt;
-				ys_new_local[local_i] = y + vy_new * dt;
-				zs_new_local[local_i] = z + vz_new * dt;
-				vxs_new_local[local_i] = vx_new;
-				vys_new_local[local_i] = vy_new;
-				vzs_new_local[local_i] = vz_new;
+				vx_new += axij * dt;
+				vy_new += ayij * dt;
+				vz_new += azij * dt;
 			}
+			int local_i = i - localSize * rank;
+			vx_new += vxs_local[local_i];
+			vy_new += vys_local[local_i];
+			vz_new += vzs_local[local_i];
+
+			xs_new_local[local_i] = x + vx_new * dt;
+			ys_new_local[local_i] = y + vy_new * dt;
+			zs_new_local[local_i] = z + vz_new * dt;
+			vxs_local[local_i] = vx_new;
+			vys_local[local_i] = vy_new;
+			vzs_local[local_i] = vz_new;
 		}
-		MPI_Allgather(vxs_new_local, localSize, MPI_DOUBLE, vxs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
-		MPI_Allgather(vys_new_local, localSize, MPI_DOUBLE, vys_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
-		MPI_Allgather(vzs_new_local, localSize, MPI_DOUBLE, vzs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(xs_new_local, localSize, MPI_DOUBLE, xs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(ys_new_local, localSize, MPI_DOUBLE, ys_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(zs_new_local, localSize, MPI_DOUBLE, zs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
