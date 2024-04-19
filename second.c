@@ -2,9 +2,8 @@
 
 double second()
 {
-    struct timeval tm;
+    clock_t curClock = clock();
     double t;
-    gettimeofday(&tm, NULL);
-    t = (double)(tm.tv_sec) + ((double)(tm.tv_usec)) / 1.0e6;
+    t = (double)curClock / CLOCKS_PER_SEC;
     return t;
 }

@@ -10,5 +10,5 @@ main_par:main.c
 main:main.c
 	gcc -I /opt/homebrew/opt/libomp/include -L /opt/homebrew/opt/libomp/lib main.c  -o main_par
 
-main_mpi:main_mpi.c
+main_mpi:main_mpi.c second.c
 	mpicc -I /opt/homebrew/opt/libomp/include -L /opt/homebrew/opt/libomp/lib -Xpreprocessor -fopenmp -lomp main_mpi.c -o main_mpi

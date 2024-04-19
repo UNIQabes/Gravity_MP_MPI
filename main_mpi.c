@@ -6,6 +6,7 @@
 #include <omp.h>
 
 #include "grav_data/data_util_bin.c"
+#include "second.c"
 
 int max(int v1, int v2)
 {
@@ -73,6 +74,9 @@ int main(int argc, char *argv[])
 		vzs_local[local_i] = vzs_old[i];
 	}
 
+	MPI_Barrier(MPI_COMM_WORLD);
+	double startTime = second();
+
 	double dt = 1;
 	double G = 1;
 	int stepNum = 10;
@@ -121,6 +125,19 @@ int main(int argc, char *argv[])
 		MPI_Allgather(xs_new_local, localSize, MPI_DOUBLE, xs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(ys_new_local, localSize, MPI_DOUBLE, ys_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(zs_new_local, localSize, MPI_DOUBLE, zs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+	double endTime = second();
+	double calcTime = endTime - startTime;
+	// printf("%d:%f\n", rank, calcTime);
+	double maxCalcTime;
+
+	MPI_Reduce(&calcTime, &maxCalcTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+	if (rank == 0)
+	{
+		printf("Time:{%f}\n", calcTime);
 	}
 
 	if (rank == 0)
