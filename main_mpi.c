@@ -32,9 +32,9 @@ int main(int argc, char *argv[])
 
 	// i番目のvelocityとpositionを求めるループで、それぞれのプロセスが担当する範囲の大きさ
 	// np/procNumの小数部を切り上げた値
-	int offset = (np + procNum - 1) / procNum;
+	int localSize = (np + procNum - 1) / procNum;
 
-	double arySize = offset * procNum;
+	double arySize = localSize * procNum;
 
 	double *ms = malloc(sizeof(double) * np);
 
@@ -58,12 +58,12 @@ int main(int argc, char *argv[])
 	double *vzs_old = malloc(sizeof(double) * arySize);
 	read_data("grav_data/n1000/vz.double", vzs_old, np);
 
-	double *xs_new = malloc(sizeof(double) * offset);
-	double *ys_new = malloc(sizeof(double) * offset);
-	double *zs_new = malloc(sizeof(double) * offset);
-	double *vxs_new = malloc(sizeof(double) * offset);
-	double *vys_new = malloc(sizeof(double) * offset);
-	double *vzs_new = malloc(sizeof(double) * offset);
+	double *xs_new_local = malloc(sizeof(double) * localSize);
+	double *ys_new_local = malloc(sizeof(double) * localSize);
+	double *zs_new_local = malloc(sizeof(double) * localSize);
+	double *vxs_new_local = malloc(sizeof(double) * localSize);
+	double *vys_new_local = malloc(sizeof(double) * localSize);
+	double *vzs_new_local = malloc(sizeof(double) * localSize);
 
 	double dt = 1;
 	double G = 1;
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 #pragma omp parallel
 		{
 #pragma omp parallel for
-			for (int i = offset * rank; i < min(offset * (rank + 1), np); i++) // i番目のvelocityとpositionを求める
+			for (int i = localSize * rank; i < min(localSize * (rank + 1), np); i++) // i番目のvelocityとpositionを求める
 			{
 
 				double x = xs_old[i];
@@ -105,49 +105,22 @@ int main(int argc, char *argv[])
 				vy_new += vys_old[i];
 				vz_new += vzs_old[i];
 
-				int local_i = i - offset * rank;
+				int local_i = i - localSize * rank;
 
-				xs_new[local_i] = x + vx_new * dt;
-				ys_new[local_i] = y + vy_new * dt;
-				zs_new[local_i] = z + vz_new * dt;
-				vxs_new[local_i] = vx_new;
-				vys_new[local_i] = vy_new;
-				vzs_new[local_i] = vz_new;
+				xs_new_local[local_i] = x + vx_new * dt;
+				ys_new_local[local_i] = y + vy_new * dt;
+				zs_new_local[local_i] = z + vz_new * dt;
+				vxs_new_local[local_i] = vx_new;
+				vys_new_local[local_i] = vy_new;
+				vzs_new_local[local_i] = vz_new;
 			}
 		}
-		MPI_Allgather(vxs_new, offset, MPI_DOUBLE, vxs_old, offset, MPI_DOUBLE, MPI_COMM_WORLD);
-		MPI_Allgather(vys_new, offset, MPI_DOUBLE, vys_old, offset, MPI_DOUBLE, MPI_COMM_WORLD);
-		MPI_Allgather(vzs_new, offset, MPI_DOUBLE, vzs_old, offset, MPI_DOUBLE, MPI_COMM_WORLD);
-		MPI_Allgather(xs_new, offset, MPI_DOUBLE, xs_old, offset, MPI_DOUBLE, MPI_COMM_WORLD);
-		MPI_Allgather(ys_new, offset, MPI_DOUBLE, ys_old, offset, MPI_DOUBLE, MPI_COMM_WORLD);
-		MPI_Allgather(zs_new, offset, MPI_DOUBLE, zs_old, offset, MPI_DOUBLE, MPI_COMM_WORLD);
-
-		/*
-		double *temp;
-		temp = xs_old;
-		xs_old = xs_new;
-		xs_new = temp;
-
-		temp = ys_old;
-		ys_old = ys_new;
-		ys_new = temp;
-
-		temp = zs_old;
-		zs_old = zs_new;
-		zs_new = temp;
-
-		temp = vxs_old;
-		vxs_old = vxs_new;
-		vxs_new = temp;
-
-		temp = vys_old;
-		vys_old = vys_new;
-		vys_new = temp;
-
-		temp = vzs_old;
-		vzs_old = vzs_new;
-		vzs_new = temp;
-		*/
+		MPI_Allgather(vxs_new_local, localSize, MPI_DOUBLE, vxs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
+		MPI_Allgather(vys_new_local, localSize, MPI_DOUBLE, vys_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
+		MPI_Allgather(vzs_new_local, localSize, MPI_DOUBLE, vzs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
+		MPI_Allgather(xs_new_local, localSize, MPI_DOUBLE, xs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
+		MPI_Allgather(ys_new_local, localSize, MPI_DOUBLE, ys_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
+		MPI_Allgather(zs_new_local, localSize, MPI_DOUBLE, zs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 	}
 
 	if (rank == 0)
