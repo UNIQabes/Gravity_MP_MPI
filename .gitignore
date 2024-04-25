@@ -1,8 +1,5 @@
-
-grav_data/n1000/
-
-grav_data/n3072/
-
 grav_data/result1000/
 
 .vscode/
+
+bin/
