@@ -5,6 +5,8 @@
 #include <omp.h>
 
 #include "grav_data/data_util_bin.c"
+#include "second.c"
+
 int main()
 {
 	int np = 1000;
@@ -41,6 +43,8 @@ int main()
 	double dt = 1;
 	double G = 1;
 	int stepNum = 10;
+
+	double starttime = second();
 	for (int stepCount = 0; stepCount < stepNum; stepCount++)
 	{
 // printf("pos[0]:(%f,%f,%f) v[0](%f,%f,%f)\n", xs_old[0], ys_old[0], zs_old[0], vxs_old[0], vys_old[0], vzs_old[0]);
@@ -111,6 +115,9 @@ int main()
 		vzs_old = vzs_new;
 		vzs_new = temp;
 	}
+
+	double endtime = second();
+	printf("%f\n", endtime - starttime);
 
 	// for (int i = 0; i < 3; i++){printf("%f/", xs_old[i]);}printf("\n");
 
