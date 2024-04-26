@@ -102,7 +102,7 @@ int main()
 	}
 
 	double endtime = second();
-	printf("Time:{%f}\n", endtime - starttime);
+	printf("%f\n", endtime - starttime);
 
 	// for (int i = 0; i < 3; i++){printf("%f/", xs_old[i]);}printf("\n");
 
