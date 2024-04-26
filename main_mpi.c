@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
 
 	if (rank == 0)
 	{
-		printf("Time:{%f}\n", calcTime);
+		printf("%f\n", calcTime);
 	}
 
 	if (rank == 0)
