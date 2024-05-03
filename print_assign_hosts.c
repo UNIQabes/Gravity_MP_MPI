@@ -1,4 +1,5 @@
 #include <mpi.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "second.c"
@@ -17,8 +18,15 @@ int main(int argc, char *argv[])
 	int len=0;
 	MPI_Get_processor_name(procName, &len);
 	
-	printf("%s:%d/%d\n",procName,rank,size);
+	printf("%s:%d/%d ",procName,rank,size);
 
+	#pragma omp parallel
+	{
+		if(omp_get_thread_num()==0)
+		{
+			printf("NThreads:%d\n",omp_get_num_threads());
+		}
+	}
 	
 	MPI_Finalize();
 }

@@ -14,4 +14,4 @@ bin/main_mpi:main_mpi.c second.c
 	mpicc -I /opt/homebrew/opt/libomp/include -L /opt/homebrew/opt/libomp/lib -Xpreprocessor -fopenmp -lm -lgomp main_mpi.c -o bin/main_mpi
 	
 bin/print_assign_hosts:print_assign_hosts.c
-	mpicc print_assign_hosts.c -o bin/print_assign_hosts
+	mpicc print_assign_hosts.c -lgomp -Xpreprocessor -fopenmp  -o bin/print_assign_hosts 
