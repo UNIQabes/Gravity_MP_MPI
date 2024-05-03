@@ -1,5 +1,8 @@
 #!/bin/zsh
-array=( 1 2 4 8 16 32 64 )
+
+hostname
+
+array=( 1 2 4 8 14 16 24 25 26 27 28 32 64 128)
 
 for i in $array
 do

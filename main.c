@@ -45,12 +45,13 @@ int main()
 	int stepNum = 10;
 
 	double starttime = second();
-	for (int stepCount = 0; stepCount < stepNum; stepCount++)
+	int stepCount=0;
+	for (stepCount = 0; stepCount < stepNum; stepCount++)
 	{
 		// printf("pos[0]:(%f,%f,%f) v[0](%f,%f,%f)\n", xs_old[0], ys_old[0], zs_old[0], vxs_old[0], vys_old[0], vzs_old[0]);
-
+		int i=0;
 #pragma omp parallel for
-		for (int i = 0; i < np; i++) // i番目のvelocityとpositionを求める
+		for (i = 0; i < np; i++) // i番目のvelocityとpositionを求める
 		{
 			double x = xs_old[i];
 			double y = ys_old[i];
@@ -59,7 +60,8 @@ int main()
 			double vx_new = 0;
 			double vy_new = 0;
 			double vz_new = 0;
-			for (int j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
+			int j = 0;
+			for (j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
 			{
 				if (j == i)
 				{

@@ -1,9 +1,7 @@
 #!/bin/zsh
 #SBATCH -p bdw2
-#SBATCH -w ppx2-04
-#SBATCH -n 2
-#SBATCH -c 14
-#SBATCH -J test_openmp
+#SBATCH -N 1
+#SBATCH -J test_openmpi
 #SBATCH -o ./report/stdout.%J
 #SBATCH -e ./report/stderr.%J 
-./mpcode_time.sh
+mpirun -N 1 -n 1 -cpus-per-proc 5 bin/main_mpi

@@ -66,7 +66,8 @@ int main(int argc, char *argv[])
 	double *vxs_local = malloc(sizeof(double) * localSize);
 	double *vys_local = malloc(sizeof(double) * localSize);
 	double *vzs_local = malloc(sizeof(double) * localSize);
-	for (int i = localSize * rank; i < min(localSize * (rank + 1), np); i++)
+	int i=0;
+	for (i = localSize * rank; i < min(localSize * (rank + 1), np); i++)
 	{
 		int local_i = i - localSize * rank;
 		vxs_local[local_i] = vxs_old[i];
@@ -80,21 +81,28 @@ int main(int argc, char *argv[])
 	double dt = 1;
 	double G = 1;
 	int stepNum = 10;
-
-	for (int stepCount = 0; stepCount < stepNum; stepCount++)
+	int stepCount = 0;
+	for (stepCount = 0; stepCount < stepNum; stepCount++)
 	{
+		//int i=0;
 #pragma omp parallel for
-		for (int i = localSize * rank; i < min(localSize * (rank + 1), np); i++) // i番目のvelocityとpositionを求める
+		for (i = localSize * rank; i < min(localSize * (rank + 1), np); i++) // i番目のvelocityとpositionを求める
 		{
-
+			//工夫:配列に格納されていて頻繁にアクセスする値は、privateな一時変数に値をコピーし、計算にはその変数を使う。
+			//そうすることで排他制御の回数をできるだけ減らし、その分速くなる。
 			double x = xs_old[i];
 			double y = ys_old[i];
 			double z = zs_old[i];
 
+			//また、上と同様の理由で、計算途中の値についてもprivateな一時変数に入れるようにし、
+			//最終的な値を一時変数から配列にコピーするようにしている。
 			double vx_new = 0;
 			double vy_new = 0;
 			double vz_new = 0;
-			for (int j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
+			//1つ目のループがすでに今回の実験の最大コア数(84)より十分大きい(約12倍)為、内側のループは並列化しない。
+			//これによって、スレッドの初期化や、スレッド間の排他制御の回数を減らし、reduction処理を行わずに済む為、その分速くなる。
+			int j = 0;
+			for (j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
 			{
 				if (j == i)
 				{
@@ -115,13 +123,20 @@ int main(int argc, char *argv[])
 			vy_new += vys_local[local_i];
 			vz_new += vzs_local[local_i];
 
+			//質点のデータは他の質点の座標を求める時にも使うので、即座に値を更新せず、新しい値を別の配列に保存しておく。
 			xs_new_local[local_i] = x + vx_new * dt;
 			ys_new_local[local_i] = y + vy_new * dt;
 			zs_new_local[local_i] = z + vz_new * dt;
+
+			//速度のデータは、その次のステップのその質点の位置を計算する時にしか使わないので、新しい質点の値にすぐ更新する
+			//こうすることで、不要なメモリアクセスを減らす
 			vxs_local[local_i] = vx_new;
 			vys_local[local_i] = vy_new;
 			vzs_local[local_i] = vz_new;
 		}
+
+		//速度のデータはその質点の位置を計算するプロセスしか使わないため、各ステップにおける質点の速度は他のプロセスに共有しない。
+		//それにより、データ通信及びコピーの時間が削減される
 		MPI_Allgather(xs_new_local, localSize, MPI_DOUBLE, xs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(ys_new_local, localSize, MPI_DOUBLE, ys_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(zs_new_local, localSize, MPI_DOUBLE, zs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
