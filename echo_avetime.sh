@@ -4,7 +4,7 @@ iterC=10
 sum=0
 for i in $(seq $iterC)
 do
-	a=$($1)
+	a=$(eval $1)
 	sum=$((a+sum))
 done
 sum=$((sum/iterC))
