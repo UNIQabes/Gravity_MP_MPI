@@ -83,18 +83,24 @@ int main(int argc, char *argv[])
 	for (stepCount = 0; stepCount < stepNum; stepCount++)
 	{
 		int i = localSize * rank;
+		//工夫:各点の次のステップの速度と座標の算出はEPのため、この部分をスレッド/プロセス並列にしている。
 #pragma omp parallel for
 		for (i = localSize * rank; i < min(localSize * (rank + 1), np); i++) // i番目のvelocityとpositionを求める
 		{
-
+			// 工夫:配列に格納されていて頻繁にアクセスする値は、privateな一時変数に値をコピーし、計算にはその変数を使う。
+			// そうすることでスレッド間の排他制御の回数が減り、その分速くなる。
 			double x = xs_old[i];
 			double y = ys_old[i];
 			double z = zs_old[i];
 
+			// 工夫:また、上と同様の理由で、計算途中の値についてもprivateな一時変数に入れるようにし、
+			// 最終的な値を一時変数から配列にコピーするようにしている。
 			double vx_new = 0;
 			double vy_new = 0;
 			double vz_new = 0;
 
+			// 工夫:1つ目のループがすでに今回の実験の最大コア数(84)より十分大きい(約12倍)為、内側のループは並列化しない。
+			// これによって、スレッドの初期化や、スレッド間の排他制御の回数を減らし、reduction処理を行わずに済む為、その分速くなる。
 			int j = 0;
 			for (j = 0; j < np; j++) // i番目に対して働くv番目の重力を求める。
 			{
@@ -104,6 +110,10 @@ int main(int argc, char *argv[])
 				}
 				double rij = sqrt(pow(xs_old[j] - x, 2) + pow(ys_old[j] - y, 2) + pow(zs_old[j] - z, 2));
 
+				//工夫:ここで計算した値は、j=現在のi i=現在のj の処理でも使われるため、キャッシュしておく方法もあるが、
+				//その場合、計算量を半分に抑える代わりに他のプロセスとの通信を行う必要がある。
+				//通信の遅延に加えて、(データ数)*(通信スループットの逆数)の通信時間が増加してしまう。
+				//通信するよりも、逐一演算を行なった方が早いと判断した。
 				double axij = (-G) * ms[j] / pow(rij, 2) * (x - xs_old[j]) / rij;
 				double ayij = (-G) * ms[j] / pow(rij, 2) * (y - ys_old[j]) / rij;
 				double azij = (-G) * ms[j] / pow(rij, 2) * (z - zs_old[j]) / rij;
@@ -112,6 +122,9 @@ int main(int argc, char *argv[])
 				vy_new += ayij * dt;
 				vz_new += azij * dt;
 			}
+			// 工夫:速度のデータは次のステップのその質点の位置を計算する時にしか使わないので、新しい質点の値にすぐ更新する
+			// こうすることで、配列への不要なコピーを無くせるor配列のキャッシュヒット率を上げる。
+			//(一気に更新した方が排他制御のオーバーヘッドが小さくなったりしますか?)
 			int local_i = i - localSize * rank;
 			vx_new += vxs_local[local_i];
 			vy_new += vys_local[local_i];
@@ -124,15 +137,20 @@ int main(int argc, char *argv[])
 			vys_local[local_i] = vy_new;
 			vzs_local[local_i] = vz_new;
 		}
+		
+		//この部分は、プロセス数に比例して通信のオーバーヘッドが発生するため、ノード数*プロセス数分の時間がかかると思われる。
+		//また、受け取ったデータのコピーに関しては、メモリやキャッシュに対するプロセス数に比例して時間がかかると思われる。
+		//そのため、この部分はノードあたりのプロセス数に比例して時間が増えると思われる。
 		MPI_Allgather(xs_new_local, localSize, MPI_DOUBLE, xs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(ys_new_local, localSize, MPI_DOUBLE, ys_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(zs_new_local, localSize, MPI_DOUBLE, zs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
+		// 工夫:速度のデータはその質点の位置を計算するプロセスしか使わないため、各ステップにおける質点の速度は他のプロセスに共有しない。
+		// それにより、データ通信及びコピーの時間が削減される
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	double endTime = second();
 	double calcTime = endTime - startTime;
-	// printf("%d:%f\n", rank, calcTime);
 	double maxCalcTime;
 
 	MPI_Reduce(&calcTime, &maxCalcTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
