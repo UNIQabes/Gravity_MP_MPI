@@ -12,6 +12,7 @@ int max(int v1, int v2)
 {
 	return v1 > v2 ? v1 : v2;
 }
+
 int min(int v1, int v2)
 {
 	return v1 < v2 ? v1 : v2;
@@ -144,6 +145,8 @@ int main(int argc, char *argv[])
 		MPI_Allgather(xs_new_local, localSize, MPI_DOUBLE, xs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(ys_new_local, localSize, MPI_DOUBLE, ys_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
 		MPI_Allgather(zs_new_local, localSize, MPI_DOUBLE, zs_old, localSize, MPI_DOUBLE, MPI_COMM_WORLD);
+
+
 		// 工夫:速度のデータはその質点の位置を計算するプロセスしか使わないため、各ステップにおける質点の速度は他のプロセスに共有しない。
 		// それにより、データ通信及びコピーの時間が削減される
 	}
